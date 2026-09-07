@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PawPilot AI语音预约系统</title>
+  <title>AI Voice Booking Agent</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/"><span class="brand-dot"></span>PawPilot AI语音预约系统</a>
+    <a class="brand" href="/"><span class="brand-dot"></span>AI Voice Booking Agent</a>
     <div><a class="nav-link" href="/delivery.html">客户开通与交付</a>　<span class="status"><span class="status-dot"></span><span id="agent-mode">AI 前台在线</span></span></div>
   </header>
 
@@ -17,7 +17,7 @@
       <div>
         <p class="eyebrow">AI VOICE BOOKING AGENT</p>
         <h1>让每一次来电，<br>都变成一次安心预约。</h1>
-        <p class="lead">这是一套可完整跑通的宠物护理预约 Demo：咨询服务、查询时段、确认信息并生成真实预约记录。</p>
+        <p class="lead">一套可配置的语音预约引擎：理解需求、查询时段、确认信息并生成真实预约记录。当前加载宠物护理示例业务。</p>
       </div>
       <div class="business-card">
         <span>今日接待门店</span>
@@ -65,8 +65,8 @@
         <p class="eyebrow">BOOKING DRAFT</p>
         <h2>预约单</h2>
         <div class="agent-core">
-          <strong>业务核心：Agent → Tools → Database</strong>
-          <span>模型负责决策，工具负责事实与执行。</span>
+          <strong>业务核心：LLM → LangGraph → Service → Database</strong>
+          <span>模型理解语言，确定性流程控制业务写入。</span>
         </div>
         <div id="flow-stage" class="flow-stage" data-stage="idle">等待开始</div>
         <div id="agent-trace" class="agent-trace" aria-live="polite"></div>

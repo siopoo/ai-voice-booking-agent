@@ -25,7 +25,7 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install -r requirements-dev.txt
       - name: Lint
-        run: ruff check app evals server.py booking_agent.py booking_workflow.py business_config.py sensevoice_stt.py
+        run: ruff check .
       - name: Unit and integration tests
         run: pytest -q
       - name: Deterministic Agent evals
@@ -41,4 +41,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build production image
-        run: docker build -t pawpilot:ci .
+        run: docker build -t ai-voice-booking-agent:ci .

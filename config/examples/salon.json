@@ -1,0 +1,41 @@
+{
+  "business_name": "North Star Hair Studio",
+  "business_type": "hair_salon",
+  "address": "100 Market Street",
+  "timezone": "Asia/Shanghai",
+  "opening_time": "09:00",
+  "closing_time": "19:00",
+  "closed_weekdays": [
+    1
+  ],
+  "booking_window_days": 30,
+  "services": [
+    {
+      "id": "haircut",
+      "name": "Haircut",
+      "duration": 60,
+      "price": 120
+    },
+    {
+      "id": "color",
+      "name": "Hair coloring",
+      "duration": 120,
+      "price": 320
+    },
+    {
+      "id": "styling",
+      "name": "Wash and styling",
+      "duration": 45,
+      "price": 90
+    }
+  ],
+  "appointment_slots": [
+    "09:00",
+    "10:30",
+    "13:00",
+    "15:00",
+    "17:00"
+  ],
+  "agent_language": "en",
+  "welcome_message": "Hello, I am the AI booking assistant. Which salon service would you like to schedule?"
+}

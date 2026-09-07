@@ -134,7 +134,7 @@ if (SpeechRecognition) {
 function addMessage(role, text) {
   const node = document.createElement("div");
   node.className = `message ${role}`;
-  const speaker = role === "ai" ? "PawPilot AI" : "访客";
+  const speaker = role === "ai" ? "Booking Agent AI" : "访客";
   node.innerHTML = `<span class="speaker">${speaker}</span>${escapeHtml(text)}`;
   elements.messages.appendChild(node);
   elements.messages.scrollTop = elements.messages.scrollHeight;

@@ -1,193 +1,262 @@
-# PawPilot AI Voice Booking Agent
+# AI Voice Booking Agent
 
-一个面向宠物护理门店的可运行 AI 语音预约系统。它不是只会聊天的网页 Demo：LangGraph 负责业务状态推进，Service 负责规则与事务，SQLite 保存真实预约；LLM 只承担自然语言理解与表达，不能绕过确认门槛直接决定业务事实。
+[![CI](https://github.com/siopoo/voice-booking/actions/workflows/ci.yml/badge.svg)](https://github.com/siopoo/voice-booking/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 已实现能力
+A configurable, production-oriented AI voice appointment booking agent built with LangGraph and deterministic business workflows.
 
-- 新建预约：服务、宠物、日期、时段、联系人、手机号逐项收集。
-- 查询、改期、取消：按预约编号或手机号核验，改期和取消必须明确确认。
-- 真实可用时段：营业时间、休息日、服务时长、预约窗口、已占用时段共同计算。
-- 写入安全：明确确认才创建；SQLite 条件唯一索引处理并发抢占；幂等键阻止重复预约。
-- 双运行模式：可靠模式无需 LLM；真实 Agent 模式支持 OpenAI-compatible 模型。
-- 语音入口：浏览器语音、OpenAI-compatible STT 或本地 SenseVoice；文字输入始终可用。
-- 客户开通：申请、采集、审核、生成配置、测试、验收、激活完整状态流。
-- 工程化：分层架构、类型化异常、结构化脱敏日志、Python 测试、30 条 Agent Eval、前端单测、Docker 和 CI。
+## Overview
 
-## 架构
+Most AI booking demos let the LLM directly modify business data. This project deliberately separates language understanding from business authority.
 
-```text
-Browser (voice/text)
-        |
-        v
-HTTP API / static UI  ---- request_id / sanitized errors
-        |
-        +--> LLM (untrusted)
-        |    intent / field extraction / read-only tools
-        |          |
-        |          v
-        |    LangGraph write-control plane
-        |    validate -> availability -> trusted confirmation -> mutation node
-        |          |
-        +----------+
-                   v
-        BookingService (create / reschedule / cancel)
-                   |
-             Repositories
-                   |
-                SQLite
-```
+The LLM understands user intent and extracts information. LangGraph controls workflow state. The service layer enforces booking rules. The database provides consistency guarantees. The included pet-grooming business is an example configuration, not a constraint on the booking engine.
 
-关键边界：
+## Why This Project
 
-- `app/agents/`：统一的 `BookingAgentState`、LangGraph 节点/条件边、提示词。
-- `app/services/`：预约、开通和语音业务规则，不依赖 HTTP。
-- `app/repositories/`：SQLite 持久化与查询。
-- `app/api/`：路由、状态码、输入输出和安全错误映射。
-- `server.py`：兼容入口和依赖组装，从原约 1045 行缩减到约 256 行。
+Appointment booking combines probabilistic language understanding with operations that must be deterministic: checking availability, obtaining explicit confirmation, preventing duplicates, and resolving concurrent writes. A prompt alone is not a sufficient authorization boundary.
 
-更详细的状态机、事务边界和设计取舍见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+This repository demonstrates how to keep an LLM useful without making it authoritative. It is designed as a local-first reference implementation that can run, test, and evaluate its core booking lifecycle without an API key.
 
-## LangGraph 状态机
+## Features
 
-`BookingAgentState` 是预约流程的单一事实源，包含：
+- Create, query, reschedule, and cancel appointments.
+- Deterministic LangGraph workflow for all booking mutations.
+- Explicit confirmation guards before create, reschedule, or cancel.
+- Availability validation against hours, closures, service duration, booking window, and occupied slots.
+- Idempotency records for retry-safe booking creation.
+- SQLite partial unique index for concurrent slot protection.
+- Read-only LLM tool boundary; the model cannot directly mutate booking data.
+- Reliable mode with no LLM dependency and Agent mode with OpenAI-compatible providers.
+- Browser speech recognition, OpenAI-compatible STT, or local SenseVoice.
+- Configurable business facts, services, hours, language, and welcome message.
+- Service/repository separation, typed errors, structured logging, and sensitive-data redaction.
+- Offline pytest suite, deterministic Agent evaluation, frontend tests, Docker, and CI.
 
-`messages`、`thread_id`、`intent`、`booking_draft`、`missing_fields`、`availability`、`selected_slot`、`confirmation_status`、`booking_result`、`stage`、`error`。
+## Demo
 
-主要节点：
+The built-in web interface supports voice or text booking and exposes the current draft, workflow stage, and tool trace. The default configuration models a pet-grooming business; alternative configurations can use the same workflow without duplicating business logic.
 
 ```text
-understand_request
-  -> collect_booking_info
-      -> ask_for_missing_info -> END
-      -> check_availability
-          -> suggest_alternatives -> END
-          -> await_confirmation
-              -> END (模糊/拒绝/修改)
-              -> create_booking -> completed -> END (明确确认)
+http://127.0.0.1:8000/
 ```
 
-当日期或时间改变，可用时段与已选时段立即失效；服务改变时，价格、时长、可用时段与已选时段全部失效。重复确认看到已有 `booking_result` 后直接完成，不再次写库。
+Demo media coming soon. Real captures will be stored as `docs/assets/demo.gif` and `docs/assets/architecture.png`; placeholder product screenshots are intentionally not included.
 
-LLM 面向的工具只有事实读取、草稿更新、时段查询和预约查找。创建、改期、取消工具不绑定给模型；这些数据库变更只能由确定性的 LangGraph 节点在状态 Guard 通过后执行。
+## Architecture
 
-## 本地启动
+```mermaid
+flowchart TD
+    Client[Browser voice or text] --> API[HTTP API]
+    API --> LLM[LLM intent and field extraction]
+    LLM --> Graph[LangGraph workflow]
+    Graph --> Guard[Deterministic confirmation guard]
+    Guard --> Service[Booking Service]
+    Service --> Repository[Repository]
+    Repository --> DB[(SQLite)]
+    LLM -. no direct mutation access .-> Blocked[Create / reschedule / cancel]
+    Blocked -. authorized only by graph state .-> Guard
+```
 
-要求 Python 3.11+。
+The dependency direction is deliberately simple:
 
-```powershell
+```text
+LLM: interpret and propose
+        ↓
+LangGraph: validate state and authorize transitions
+        ↓
+Service: enforce booking rules and transaction semantics
+        ↓
+Repository: persist and query data
+        ↓
+SQLite: enforce final consistency constraints
+```
+
+See [Architecture](docs/ARCHITECTURE.md) and [Design Decisions](docs/DESIGN_DECISIONS.md) for the boundaries and trade-offs.
+
+## LangGraph Workflow
+
+Create:
+
+```mermaid
+flowchart LR
+    A[Understand request] --> B[Collect booking information]
+    B --> C[Check availability]
+    C --> D[Await explicit confirmation]
+    D -->|confirmed| E[Create booking node]
+    D -->|pending / rejected / changed| F[Wait or collect changes]
+    E --> G[Completed]
+```
+
+Reschedule and cancel first resolve a specific existing booking. Multiple matches enter `awaiting_booking_selection`; no model-generated guess is accepted. Date, time, or service changes invalidate stale availability and confirmation state.
+
+## Quick Start
+
+Requirements: Python 3.11+ and, for frontend tests, Node.js 20+.
+
+```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+```
+
+Activate the environment (`source .venv/bin/activate` on macOS/Linux or `.\.venv\Scripts\Activate.ps1` in PowerShell), then run:
+
+```bash
 python -m pip install -r requirements.txt
-Copy-Item .env.example .env
+cp .env.example .env
 python server.py
 ```
 
-打开 <http://127.0.0.1:8000/>，运营交付页是 <http://127.0.0.1:8000/delivery.html>，健康检查是 <http://127.0.0.1:8000/api/health>。
+On PowerShell, use `Copy-Item .env.example .env` instead of `cp`. Open <http://127.0.0.1:8000/>. Reliable mode works without an API key.
 
-默认可靠模式不需要 API Key，预约、查询、改期、取消和开通流程都能运行。
-
-## 模型与语音配置
-
-配置只放在项目根目录 `.env`，不要把真实密钥提交到 Git：
-
-```dotenv
-PAWPILOT_LLM_API_KEY=your-api-key
-PAWPILOT_LLM_MODEL=deepseek-chat
-PAWPILOT_LLM_BASE_URL=https://api.deepseek.com
-PAWPILOT_LLM_TIMEOUT=45
-PAWPILOT_LLM_MAX_RETRIES=3
-```
-
-OpenAI-compatible 语音转文字：
-
-```dotenv
-PAWPILOT_STT_PROVIDER=api
-PAWPILOT_STT_API_KEY=your-stt-key
-PAWPILOT_STT_MODEL=whisper-1
-PAWPILOT_STT_BASE_URL=https://api.openai.com/v1
-```
-
-本地 SenseVoice：
-
-```powershell
-python -m pip install -r requirements-sensevoice.txt
-```
-
-```dotenv
-PAWPILOT_STT_PROVIDER=sensevoice
-PAWPILOT_SENSEVOICE_MODEL=iic/SenseVoiceSmall
-PAWPILOT_SENSEVOICE_HUB=ms
-PAWPILOT_SENSEVOICE_DEVICE=auto
-PAWPILOT_SENSEVOICE_LANGUAGE=zh
-```
-
-可选运行配置：`PAWPILOT_HOST`、`PAWPILOT_PORT`、`PAWPILOT_DATABASE_PATH`、`PAWPILOT_BUSINESS_CONFIG_PATH`、`PAWPILOT_LOG_LEVEL`。完整示例见 `.env.example`。
-
-## Docker
-
-Docker Compose 不要求 LLM Key；未提供时系统自动保持可靠模式。
+Docker is also supported:
 
 ```bash
 docker compose up --build
 ```
 
-数据库持久化到 `./data`，门店配置挂载自 `./config`。停止：
+## Configuration
 
-```bash
-docker compose down
+Business behavior is configured in [`config/business.json`](config/business.json). It contains the business name, timezone, opening hours, closed weekdays, booking window, services, appointment slots, language, and welcome message.
+
+Example configurations:
+
+- [`config/examples/pet_grooming.json`](config/examples/pet_grooming.json)
+- [`config/examples/salon.json`](config/examples/salon.json)
+
+Select a configuration without changing application code:
+
+```dotenv
+PAWPILOT_BUSINESS_CONFIG_PATH=config/examples/salon.json
 ```
 
-## 测试与评测
+Model configuration:
 
-```powershell
+```dotenv
+PAWPILOT_LLM_API_KEY=your-api-key
+PAWPILOT_LLM_MODEL=your-model
+PAWPILOT_LLM_BASE_URL=https://api.openai.com/v1
+```
+
+STT can use an OpenAI-compatible transcription endpoint or local SenseVoice. See [`.env.example`](.env.example) for every setting.
+
+> `PAWPILOT_*` names are legacy environment variable names retained for backward compatibility. Renaming them would be a breaking change; new generic aliases are planned for a future major release.
+
+## API
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | Health and version information |
+| `GET` | `/api/config` | Current business facts and services |
+| `GET` | `/api/slots?date=&service_id=` | Available appointment slots |
+| `GET` | `/api/bookings` | Redacted operational booking list |
+| `POST` | `/api/bookings` | Create a booking; supports `Idempotency-Key` |
+| `POST` | `/api/bookings/query` | Find a booking by code or phone |
+| `POST` | `/api/bookings/reschedule` | Reschedule after explicit confirmation |
+| `POST` | `/api/bookings/cancel` | Cancel after explicit confirmation |
+| `POST` | `/api/chat` | Run an Agent conversation turn |
+| `POST` | `/api/agent/interpret` | Reliable-mode intent and draft interpretation |
+| `POST` | `/api/transcribe` | Transcribe audio |
+| `GET/POST` | `/api/onboarding/applications` | Business onboarding workflow |
+
+This is a demonstration API and currently has no authentication. Do not expose it directly to the public internet.
+
+## Safety & Reliability
+
+- **Deterministic mutations:** create, reschedule, and cancel are executed only by guarded LangGraph nodes.
+- **Untrusted model output:** LLM tool-call arguments and generated messages are never treated as authorization.
+- **Confirmation safety:** the last real user message is classified deterministically before a write transition.
+- **State invalidation:** changing date, time, or service invalidates derived availability and prior confirmation.
+- **Idempotency:** repeated requests with the same key replay the original response rather than writing twice.
+- **Concurrency protection:** a database unique constraint is the final authority for slot conflicts.
+- **Fact grounding:** services, prices, hours, and slots come from configuration or persisted state.
+- **Privacy-aware logging:** phone numbers, authorization headers, tokens, and API keys are redacted.
+- **Offline CI:** automated tests and evaluations run with model and STT credentials disabled.
+
+## Evaluation
+
+Run the complete local quality suite:
+
+```bash
 python -m pip install -r requirements-dev.txt
+ruff check .
 pytest -q
-ruff check app evals server.py booking_agent.py booking_workflow.py business_config.py sensevoice_stt.py
 python -m evals.run_evals
 npm test
 ```
 
-Agent Eval 完全离线，不调用真实模型。当前基线：
+Current verified baseline:
 
-| 指标 | 结果 |
+| Check | Result |
 |---|---:|
-| 场景数 | 30 |
-| 通过 | 30 |
-| 明确确认后才写入 | 100% |
-| 重复写入 | 0 |
-| 业务事实幻觉 | 0 |
+| Python tests | 82 passed |
+| Deterministic Agent scenarios | 30 / 30 passed |
+| Confirmation safety rate | 100% |
+| Duplicate writes in eval | 0 |
+| Business-fact hallucinations in eval | 0 |
+| Frontend test scripts | 5 passed |
 
-场景覆盖意图路由、缺字段、多轮收集、模糊/明确确认、拒绝、修改、字段失效、冲突替代、重复确认和服务异常。失败报告包含逐轮对话和节点 trace。
+The Agent evaluation is offline and uses deterministic service adapters, so it does not call a paid model API or require secrets.
 
-## 核心 API
+## Project Structure
 
-| 方法 | 路径 | 用途 |
-|---|---|---|
-| GET | `/api/health` | 健康检查 |
-| GET | `/api/config` | 门店与服务事实 |
-| GET | `/api/slots?date=&service_id=` | 查询真实可用时段 |
-| POST | `/api/bookings` | 创建预约，支持 `Idempotency-Key` |
-| POST | `/api/bookings/query` | 查询预约 |
-| POST | `/api/bookings/reschedule` | 明确确认后改期 |
-| POST | `/api/bookings/cancel` | 明确确认后取消 |
-| POST | `/api/chat` | 真实 Agent 对话 |
-| POST | `/api/transcribe` | 音频转文字 |
-| POST/GET | `/api/onboarding/applications` | 客户开通流程 |
+```text
+app/
+  agents/          LangChain prompts/tools boundary and LangGraph workflow
+  api/             HTTP routing, serialization, and safe error mapping
+  core/            settings, typed exceptions, and logging
+  db/              SQLite connection and schema
+  repositories/    persistence and data mapping
+  services/        booking, onboarding, and speech business rules
+config/
+  business.json    active default business configuration
+  examples/        reusable business configuration examples
+docs/              architecture, decisions, security, and setup notes
+evals/             deterministic booking scenarios and runner
+static/            browser UI and voice-session modules
+tests/             unit, integration, and Agent boundary tests
+server.py          composition root and compatible application entry point
+booking_agent.py   Agent integration and compatible public facade
+booking_workflow.py backward-compatible workflow imports
+business_config.py business configuration validation and persistence
+```
 
-## 安全与可靠性
+Root-level compatibility modules and JavaScript test runners remain in place to avoid breaking existing imports and CI commands. They are active entry points or intentional facades, not generated artifacts.
 
-- API Key 只从环境变量读取，状态接口、日志和响应从不返回密钥。
-- 日志自动遮蔽手机号与 Authorization/API Key 字段。
-- HTTP 响应隐藏堆栈和内部异常，只返回可行动的安全错误。
-- LLM 不提供门店事实；服务、价格、营业时间和时段均来自配置或数据库工具。
-- 业务写入由状态机确认门槛、Service 校验、幂等记录和数据库唯一约束共同保护。
-- CI 清空模型/STT 凭据，只运行可重复的离线测试。
+## Design Decisions
 
-## 已知限制
+Key decisions are documented in [docs/DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md):
 
-- 目前使用进程内 LangGraph 会话状态；多实例部署应迁移到 Redis/PostgreSQL checkpointer。
-- SQLite 适合考核和单机演示；高并发生产环境应迁移到 PostgreSQL，并使用事务锁或版本号。
-- SenseVoice 依赖较大，默认 Docker 镜像不包含本地模型运行时。
-- 当前 HTTP 层使用 Python 标准库，生产环境可迁移到 FastAPI/ASGI 以获得 schema、认证和监控生态。
+- Why LangGraph is used instead of prompt-only tool calling.
+- Why the LLM cannot create bookings directly.
+- Why SQLite is appropriate for the current local-first scope.
+- Why idempotency protects both user retries and network retries.
+- Why service and repository layers remain separate.
+- Why reliable mode exists alongside Agent mode.
 
-面试讲解顺序与高频追问见 [docs/INTERVIEW_GUIDE.md](docs/INTERVIEW_GUIDE.md)。
+## Known Limitations
+
+- Session state is stored in process memory and is not shared across instances.
+- SQLite targets local and single-instance deployments, not high-throughput distributed workloads.
+- The standard-library HTTP server does not provide production authentication, schema generation, or advanced middleware.
+- There is no SIP, telephony provider, TTS pipeline, or human handoff yet.
+- The default Docker image excludes the larger local SenseVoice runtime.
+- Business configuration is single-tenant and file-based.
+
+## Roadmap
+
+- [ ] FastAPI / ASGI migration
+- [ ] PostgreSQL repository
+- [ ] Redis / PostgreSQL LangGraph checkpointing
+- [ ] TTS support
+- [ ] SIP / Twilio integration
+- [ ] Multi-tenant business configurations
+- [ ] OpenTelemetry observability
+- [ ] Web admin dashboard
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, quality checks, and pull-request expectations. For vulnerabilities, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

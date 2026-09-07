@@ -259,11 +259,11 @@ def run() -> None:
 
         threading.Thread(target=preload_sensevoice, name="sensevoice-warmup", daemon=True).start()
     httpd = ThreadingHTTPServer((HOST, PORT), AppHandler)
-    logger.info("PawPilot started at http://%s:%s", HOST, PORT)
+    logger.info("AI Voice Booking Agent started at http://%s:%s", HOST, PORT)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        logger.info("PawPilot stopped")
+        logger.info("AI Voice Booking Agent stopped")
     finally:
         httpd.server_close()
 

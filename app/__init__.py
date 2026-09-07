@@ -1,1 +1,1 @@
-"""PawPilot application package."""
+"""AI Voice Booking Agent application package."""

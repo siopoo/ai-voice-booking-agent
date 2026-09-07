@@ -1,4 +1,6 @@
-# 架构设计
+# Architecture
+
+AI Voice Booking Agent separates probabilistic language understanding from deterministic business authority. Detailed trade-offs are recorded in [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md).
 
 ## 1. 目标与约束
 
@@ -32,8 +34,10 @@ app/core         Settings、类型化异常、日志（横切能力）
 2. 信息齐全后必须经过 `check_availability`。
 3. 选中时段不在工具结果中时进入 `suggest_alternatives`。
 4. 只有白名单明确确认短语把状态置为 `confirmed`；“好吧”“听起来可以”等保持 `pending`。
-5. `create_booking` 再次检查确认状态，并把 Service 异常写入可审计状态。
+5. `create_booking`、`reschedule_booking` 和 `cancel_booking` 再次检查对应确认状态，并把 Service 异常写入可审计状态。
 6. 已存在 `booking_result` 时直接到 `completed`，避免重复确认触发第二次写入。
+
+改期和取消先经过 `find_booking`。无匹配记录时停止；多条匹配记录进入 `awaiting_booking_selection`；只有唯一目标预约才能继续进入各自的确认节点。
 
 ## 4. 状态失效规则
 
