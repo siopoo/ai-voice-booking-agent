@@ -1,10 +1,17 @@
 # AI Voice Booking Agent
 
-[![CI](https://github.com/siopoo/voice-booking/actions/workflows/ci.yml/badge.svg)](https://github.com/siopoo/voice-booking/actions/workflows/ci.yml)
+[![CI](https://github.com/siopoo/ai-voice-booking-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/siopoo/ai-voice-booking-agent/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A configurable, production-oriented AI voice appointment booking agent built with LangGraph and deterministic business workflows.
+
+## What This Project Shows
+
+- **Safe LLM boundary:** the model interprets intent and extracts fields, but it cannot directly create, reschedule, or cancel bookings.
+- **Deterministic workflow control:** LangGraph owns state transitions, confirmation gates, and mutation authorization.
+- **Reliability under retries and concurrency:** idempotency records and a SQLite partial unique index protect against duplicate writes and slot conflicts.
+- **Verifiable Agent behavior:** the repository includes offline tests and deterministic Agent evaluations that run without paid model credentials.
 
 ## Overview
 
@@ -41,7 +48,7 @@ The built-in web interface supports voice or text booking and exposes the curren
 http://127.0.0.1:8000/
 ```
 
-Demo media coming soon. Real captures will be stored as `docs/assets/demo.gif` and `docs/assets/architecture.png`; placeholder product screenshots are intentionally not included.
+The interface is fully runnable locally and exposes the current booking draft, workflow stage, and tool trace. For portfolio review, the recommended demo flow is: create a booking → obtain explicit confirmation → persist successfully → query, reschedule, or cancel the booking. A short real-capture GIF can be added under `docs/assets/` later without changing the application.
 
 ## Architecture
 
