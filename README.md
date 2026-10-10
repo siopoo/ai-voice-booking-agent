@@ -1,6 +1,8 @@
 # AI Voice Booking Agent
 
-[![CI](https://github.com/siopoo/voice-booking/actions/workflows/ci.yml/badge.svg)](https://github.com/siopoo/voice-booking/actions/workflows/ci.yml)
+English | [简体中文](README.zh-CN.md)
+
+[![CI](https://github.com/siopoo/ai-voice-booking-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/siopoo/ai-voice-booking-agent/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -41,7 +43,7 @@ The built-in web interface supports voice or text booking and exposes the curren
 http://127.0.0.1:8000/
 ```
 
-Demo media coming soon. Real captures will be stored as `docs/assets/demo.gif` and `docs/assets/architecture.png`; placeholder product screenshots are intentionally not included.
+![AI Voice Booking Agent demo](docs/assets/booking-demo.gif)
 
 ## Architecture
 
